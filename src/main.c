@@ -60,7 +60,7 @@ static void PrintTestList(void)
 
 static void PrintUsage(const char *program)
 {
-    printf("Usage: %s [--test <name> | --list-tests | pong | pongX | pong2 | pong2X | testchamber | alien]\n", program);
+    printf("Usage: %s [--run-all-tests | --test <name> | --list-tests | pong | pongX | pong2 | pong2X | testchamber | alien]\n", program);
 }
 
 int main(int argc, char *argv[])
@@ -76,6 +76,16 @@ int main(int argc, char *argv[])
         if(!strcmp(argv[1], "--list-tests"))
         {
             PrintTestList();
+            return 0;
+        }
+        if(!strcmp(argv[1], "--run-all-tests"))
+        {
+            srand(1337);
+            MSC_INIT();
+            OUTPUT = 0;
+            RunAllRegressionTests();
+            puts("\nAll tests ran successfully.");
+            puts("Use '--test <name>' to run a single regression test or '--list-tests' to see options.");
             return 0;
         }
         if(!strcmp(argv[1], "--test"))
@@ -133,13 +143,7 @@ int main(int argc, char *argv[])
         PrintUsage(argv[0]);
         return 1;
     }
-    srand(1337);
-    MSC_INIT();
-    OUTPUT = 0;
-    RunAllRegressionTests();
-    puts("\nAll tests ran successfully.");
-    puts("Use '--test <name>' to run a single regression test or '--list-tests' to see options.");
-    puts("Run './MSC pong', './MSC pongX', './MSC pong2', './MSC pong2X', or './MSC testchamber' to launch interactive demos.");
+    PrintUsage(argv[0]);
     return 0;
 }
 
