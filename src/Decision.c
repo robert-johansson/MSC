@@ -15,7 +15,7 @@ void Decision_Execute(Decision *decision)
 }
 
 //"reflexes" to try different operations, especially important in the beginning
-static Decision Decision_MotorBabbling()
+static Decision Decision_MotorBabbling(void)
 {
     Decision decision = (Decision) {0};
     int n_ops = 0;

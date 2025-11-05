@@ -6,13 +6,13 @@ Concept concept_storage[CONCEPTS_MAX];
 Item concept_items_storage[CONCEPTS_MAX];
 int operations_index = 0;
 
-static void Memory_ResetEvents()
+static void Memory_ResetEvents(void)
 {
     FIFO_RESET(&belief_events);
     FIFO_RESET(&goal_events);
 }
 
-static void Memory_ResetConcepts()
+static void Memory_ResetConcepts(void)
 {
     PriorityQueue_RESET(&concepts, concept_items_storage, CONCEPTS_MAX);
     for(int i=0; i<CONCEPTS_MAX; i++)
@@ -23,7 +23,7 @@ static void Memory_ResetConcepts()
 }
 
 int concept_id = 0;
-void Memory_INIT()
+void Memory_INIT(void)
 {
     Memory_ResetConcepts();
     Memory_ResetEvents();

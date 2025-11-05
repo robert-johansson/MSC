@@ -23,7 +23,8 @@ extern long currentTime;
 //Methods//
 //-------//
 //Init/Reset system
-void MSC_INIT();
+void MSC_INIT(void);
+void MSC_SetInputLogging(bool enabled);
 //Run the system for a certain amount of cycles
 void MSC_Cycles(int cycles);
 //Add input

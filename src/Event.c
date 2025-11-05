@@ -18,7 +18,7 @@ Event Event_InputEvent(Term term, char type, Truth truth, long currentTime)
                      .occurrenceTime = currentTime };
 }
 
-void Event_INIT()
+void Event_INIT(void)
 {
     base = 1;
 }
@@ -34,4 +34,3 @@ void Event_Print(Event *event)
     Stamp_print(&event->stamp);
     printf("occurrenceTime=%ld\n\n", event->occurrenceTime);
 }
-

@@ -37,7 +37,7 @@ Operation operations[OPERATIONS_MAX];
 //Methods//
 //-------//
 //Init memory
-void Memory_INIT();
+void Memory_INIT(void);
 //Find a concept
 bool Memory_FindConceptByTerm(Term *term, /*Term_HASH_TYPE term_hash,*/ int *returnIndex);
 //Create a new concept

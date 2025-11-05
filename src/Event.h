@@ -31,7 +31,7 @@ typedef struct {
 //Methods//
 //-------//
 //Init/Reset module
-void Event_INIT();
+void Event_INIT(void);
 //Assign a new name to an event
 void Event_SetTerm(Event *event, Term term);
 //construct an input event

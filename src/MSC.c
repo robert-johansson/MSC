@@ -1,12 +1,18 @@
 #include "MSC.h"
 
 long currentTime = 1;
+bool MSC_InputLoggingEnabled = true;
 
-void MSC_INIT()
+void MSC_INIT(void)
 {
     Memory_INIT(); //clear data structures
     Event_INIT(); //reset base id counter
     currentTime = 1; //reset time
+}
+
+void MSC_SetInputLogging(bool enabled)
+{
+    MSC_InputLoggingEnabled = enabled;
 }
 
 void MSC_Cycles(int cycles)
@@ -40,7 +46,10 @@ Event MSC_AddInput(Term term, char type, Truth truth, int operationID)
             strcpy(ev.debug, c->debug);
         }
         char* st = type == EVENT_TYPE_BELIEF ? "." : "!";
-        printf("Input: %s%s :|: %%%f;%f%%\n", c->debug, st, truth.frequency, truth.confidence);
+        if(MSC_InputLoggingEnabled)
+        {
+            printf("Input: %s%s :|: %%%f;%f%%\n", c->debug, st, truth.frequency, truth.confidence);
+        }
     }
     ev.operationID = operationID;
     Memory_addEvent(&ev);
@@ -64,4 +73,3 @@ void MSC_AddOperation(Term term, Action procedure)
 {
     Memory_addOperation((Operation) {.term = term, .action = procedure});
 }
-
