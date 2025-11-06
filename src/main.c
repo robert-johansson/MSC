@@ -28,6 +28,7 @@ static const RegressionTest kRegressionTests[] = {
     {"sequence_len3", MSC_SequenceLen3_Test},
     {"exp1", MSC_Exp1_Test},
     {"exp1_training", MSC_Exp1_TrainingOnly},
+    {"exp3", MSC_Exp3_Test},
 };
 
 static const size_t kRegressionTestCount = sizeof(kRegressionTests) / sizeof(kRegressionTests[0]);
@@ -63,7 +64,7 @@ static void PrintTestList(void)
 
 static void PrintUsage(const char *program)
 {
-    printf("Usage: %s [--run-all-tests | --test <name> | --list-tests | --exp1-csv <path> | --exp2-csv <path> | pong | pongX | pong2 | pong2X | testchamber | alien | simple_discriminations]\n", program);
+    printf("Usage: %s [--run-all-tests | --test <name> | --list-tests | --exp1-csv <path> | --exp2-csv <path> | --exp3-csv <path> | pong | pongX | pong2 | pong2X | testchamber | alien | simple_discriminations]\n", program);
 }
 
 int main(int argc, char *argv[])
@@ -91,6 +92,12 @@ int main(int argc, char *argv[])
         {
             const char *path = (argc >= 3) ? argv[2] : "exp2.csv";
             MSC_Exp2_ExportCSV(path);
+            return 0;
+        }
+        if(!strcmp(argv[1], "--exp3-csv"))
+        {
+            const char *path = (argc >= 3) ? argv[2] : "exp3.csv";
+            MSC_Exp3_ExportCSV(path);
             return 0;
         }
         if(!strcmp(argv[1], "--run-all-tests"))

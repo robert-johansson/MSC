@@ -18,7 +18,7 @@
 #define EXP1_OP_LEFT_ID 1
 #define EXP1_OP_RIGHT_ID 2
 
-static Concept *Exp1_FindConcept(const Term *term)
+static Concept *Exp_FindConcept(const Term *term)
 {
     int index;
     if(Memory_FindConceptByTerm((Term *)term, &index))
@@ -28,7 +28,7 @@ static Concept *Exp1_FindConcept(const Term *term)
     return NULL;
 }
 
-static double Exp1_BestExpectationFor(Concept *goalConcept, int operation_id, const Term *precondition)
+static double Exp_BestExpectationFor(Concept *goalConcept, int operation_id, const Term *precondition)
 {
     if(goalConcept == NULL)
     {
@@ -570,6 +570,11 @@ void MSC_SequenceLen3_Test(void)
 #define EXP2_TRAINING2_BLOCKS 9
 #define EXP2_TESTING2_BLOCKS 2
 
+#define EXP3_BLOCK_TRIALS 12
+#define EXP3_BASELINE_BLOCKS 3
+#define EXP3_TRAINING_BLOCKS 6
+#define EXP3_TESTING_BLOCKS 3
+
 static int exp1_last_operation = 0;
 
 static void Exp1_OpLeft(void)
@@ -599,11 +604,11 @@ static void Exp1_LogTrial(FILE *log,
     {
         return;
     }
-    Concept *goalConcept = Exp1_FindConcept(&termG);
-    double exp_a1_left = Exp1_BestExpectationFor(goalConcept, EXP1_OP_LEFT_ID, &termA1_left);
-    double exp_a1_right = Exp1_BestExpectationFor(goalConcept, EXP1_OP_RIGHT_ID, &termA1_right);
-    double exp_a2_left = Exp1_BestExpectationFor(goalConcept, EXP1_OP_LEFT_ID, &termA2_left);
-    double exp_a2_right = Exp1_BestExpectationFor(goalConcept, EXP1_OP_RIGHT_ID, &termA2_right);
+    Concept *goalConcept = Exp_FindConcept(&termG);
+    double exp_a1_left = Exp_BestExpectationFor(goalConcept, EXP1_OP_LEFT_ID, &termA1_left);
+    double exp_a1_right = Exp_BestExpectationFor(goalConcept, EXP1_OP_RIGHT_ID, &termA1_right);
+    double exp_a2_left = Exp_BestExpectationFor(goalConcept, EXP1_OP_LEFT_ID, &termA2_left);
+    double exp_a2_right = Exp_BestExpectationFor(goalConcept, EXP1_OP_RIGHT_ID, &termA2_right);
     fprintf(log,
             "%s,%d,%d,%d,%d,%d,%.6f,%.6f,%.6f,%.6f\n",
             phase,
@@ -1066,4 +1071,376 @@ void MSC_Exp2_ExportCSV(const char *path)
     fclose(csv);
     MOTOR_BABBLING_CHANCE = original_babbling;
     printf("Experiment 2 CSV written to %s\n", path);
+}
+
+static int exp3_last_operation = 0;
+
+static void Exp3_OpLeft(void)
+{
+    exp3_last_operation = EXP1_OP_LEFT_ID;
+}
+
+static void Exp3_OpRight(void)
+{
+    exp3_last_operation = EXP1_OP_RIGHT_ID;
+}
+
+static void Exp3_LogTrial(FILE *log,
+                          const char *phase,
+                          int block,
+                          int trial,
+                          bool sample_is_a1,
+                          bool b1_on_left,
+                          int chosen_operation,
+                          bool success,
+                          Term termSampleA1,
+                          Term termSampleA2,
+                          Term termB1_left,
+                          Term termB1_right,
+                          Term termB2_left,
+                          Term termB2_right,
+                          Term termG)
+{
+    if(!log)
+    {
+        return;
+    }
+    Concept *goalConcept = Exp_FindConcept(&termG);
+
+    Term seqA1B1_left = Term_Sequence(&termSampleA1, &termB1_left);
+    Term seqA1B1_right = Term_Sequence(&termSampleA1, &termB1_right);
+    Term seqA2B2_left = Term_Sequence(&termSampleA2, &termB2_left);
+    Term seqA2B2_right = Term_Sequence(&termSampleA2, &termB2_right);
+
+    double exp_a1_b1_left = Exp_BestExpectationFor(goalConcept, EXP1_OP_LEFT_ID, &seqA1B1_left);
+    double exp_a1_b1_right = Exp_BestExpectationFor(goalConcept, EXP1_OP_RIGHT_ID, &seqA1B1_right);
+    double exp_a2_b2_left = Exp_BestExpectationFor(goalConcept, EXP1_OP_LEFT_ID, &seqA2B2_left);
+    double exp_a2_b2_right = Exp_BestExpectationFor(goalConcept, EXP1_OP_RIGHT_ID, &seqA2B2_right);
+
+    int left_id = b1_on_left ? 1 : 2;
+    int right_id = b1_on_left ? 2 : 1;
+
+    fprintf(log,
+            "%s,%d,%d,%d,%d,%d,%d,%d,%.6f,%.6f,%.6f,%.6f\n",
+            phase,
+            block + 1,
+            trial + 1,
+            sample_is_a1 ? 1 : 2,
+            left_id,
+            right_id,
+            chosen_operation,
+            success ? 1 : 0,
+            exp_a1_b1_left,
+            exp_a1_b1_right,
+            exp_a2_b2_left,
+            exp_a2_b2_right);
+}
+
+static bool Exp3_RunTrial(bool sample_is_a1,
+                          bool b1_on_left,
+                          bool provide_feedback,
+                          Term termSampleA1,
+                          Term termSampleA2,
+                          Term termB1_left,
+                          Term termB1_right,
+                          Term termB2_left,
+                          Term termB2_right,
+                          Term termOpLeft,
+                          Term termOpRight,
+                          Term termG,
+                          const char *phase,
+                          int block,
+                          int trial,
+                          FILE *log)
+{
+    Term sampleTerm = sample_is_a1 ? termSampleA1 : termSampleA2;
+    Term leftTerm = b1_on_left ? termB1_left : termB2_left;
+    Term rightTerm = b1_on_left ? termB2_right : termB1_right;
+
+    MSC_AddInputBelief(sampleTerm, 0);
+    MSC_AddInputBelief(leftTerm, 0);
+    MSC_AddInputBelief(rightTerm, 0);
+
+    exp3_last_operation = 0;
+    MSC_AddInputGoal(termG);
+
+    for(int i = 0; i < 64 && exp3_last_operation == 0; i++)
+    {
+        MSC_Cycles(1);
+    }
+    for(int attempt = 0; attempt < 4 && exp3_last_operation == 0; attempt++)
+    {
+        MSC_AddInputGoal(termG);
+        for(int i = 0; i < 64 && exp3_last_operation == 0; i++)
+        {
+            MSC_Cycles(1);
+        }
+    }
+    if(exp3_last_operation == 0)
+    {
+        exp3_last_operation = (rand() % 2) ? EXP1_OP_LEFT_ID : EXP1_OP_RIGHT_ID;
+        Term opTerm = exp3_last_operation == EXP1_OP_LEFT_ID ? termOpLeft : termOpRight;
+        MSC_AddInputBelief(opTerm, exp3_last_operation);
+    }
+
+    int expected_operation;
+    if(sample_is_a1)
+    {
+        expected_operation = b1_on_left ? EXP1_OP_LEFT_ID : EXP1_OP_RIGHT_ID;
+    }
+    else
+    {
+        expected_operation = b1_on_left ? EXP1_OP_RIGHT_ID : EXP1_OP_LEFT_ID;
+    }
+    bool success = (exp3_last_operation == expected_operation);
+
+    if(provide_feedback)
+    {
+        if(success)
+        {
+            MSC_AddInputBelief(termG, 0);
+        }
+        else
+        {
+            Truth negative_feedback = { .frequency = 0.0, .confidence = 0.9 };
+            MSC_AddInput(termG, EVENT_TYPE_BELIEF, negative_feedback, 0);
+        }
+    }
+
+    MSC_Cycles(4);
+    MSC_Cycles(100);
+
+    Exp3_LogTrial(log,
+                  phase,
+                  block,
+                  trial,
+                  sample_is_a1,
+                  b1_on_left,
+                  exp3_last_operation,
+                  success,
+                  termSampleA1,
+                  termSampleA2,
+                  termB1_left,
+                  termB1_right,
+                  termB2_left,
+                  termB2_right,
+                  termG);
+    return success;
+}
+
+static int Exp3_RunPhase(int blocks,
+                         bool provide_feedback,
+                         Term termSampleA1,
+                         Term termSampleA2,
+                         Term termB1_left,
+                         Term termB1_right,
+                         Term termB2_left,
+                         Term termB2_right,
+                         Term termOpLeft,
+                         Term termOpRight,
+                         Term termG,
+                         const char *phase,
+                         FILE *log,
+                         int *last_block_correct)
+{
+    int correct = 0;
+    int toggle = 0;
+    for(int block = 0; block < blocks; block++)
+    {
+        int block_correct = 0;
+        for(int trial = 0; trial < EXP3_BLOCK_TRIALS; trial++)
+        {
+            bool sample_is_a1 = ((toggle++) % 2 == 0);
+            bool b1_on_left = (rand() % 2) == 0;
+            bool success = Exp3_RunTrial(sample_is_a1,
+                                         b1_on_left,
+                                         provide_feedback,
+                                         termSampleA1,
+                                         termSampleA2,
+                                         termB1_left,
+                                         termB1_right,
+                                         termB2_left,
+                                         termB2_right,
+                                         termOpLeft,
+                                         termOpRight,
+                                         termG,
+                                         phase,
+                                         block,
+                                         trial,
+                                         log);
+            if(success)
+            {
+                correct++;
+                block_correct++;
+            }
+        }
+        if(block == blocks - 1 && last_block_correct != NULL)
+        {
+            *last_block_correct = block_correct;
+        }
+    }
+    return correct;
+}
+
+void MSC_Exp3_Test(void)
+{
+    puts(">>MSC Experiment 3 test start");
+
+    double original_babbling = MOTOR_BABBLING_CHANCE;
+    MOTOR_BABBLING_CHANCE = 0.2;
+
+    srand(1337);
+    OUTPUT = 0;
+    MSC_INIT();
+    MSC_SetInputLogging(false);
+
+    Term termSampleA1 = Encode_Term("exp3test_sample_A1");
+    Term termSampleA2 = Encode_Term("exp3test_sample_A2");
+    Term termB1_left = Encode_Term("exp3test_B1_left");
+    Term termB1_right = Encode_Term("exp3test_B1_right");
+    Term termB2_left = Encode_Term("exp3test_B2_left");
+    Term termB2_right = Encode_Term("exp3test_B2_right");
+    Term termG = Encode_Term("exp3test_G");
+    Term termOpLeft = Encode_Term("exp3test_op_left");
+    Term termOpRight = Encode_Term("exp3test_op_right");
+
+    MSC_AddOperation(termOpLeft, Exp3_OpLeft);
+    MSC_AddOperation(termOpRight, Exp3_OpRight);
+
+    int baseline_last_block = 0;
+    int baseline_correct = Exp3_RunPhase(EXP3_BASELINE_BLOCKS,
+                                         false,
+                                         termSampleA1,
+                                         termSampleA2,
+                                         termB1_left,
+                                         termB1_right,
+                                         termB2_left,
+                                         termB2_right,
+                                         termOpLeft,
+                                         termOpRight,
+                                         termG,
+                                         "baseline",
+                                         NULL,
+                                         &baseline_last_block);
+
+    int training_last_block = 0;
+    Exp3_RunPhase(EXP3_TRAINING_BLOCKS,
+                  true,
+                  termSampleA1,
+                  termSampleA2,
+                  termB1_left,
+                  termB1_right,
+                  termB2_left,
+                  termB2_right,
+                  termOpLeft,
+                  termOpRight,
+                  termG,
+                  "training",
+                  NULL,
+                  &training_last_block);
+
+    int testing_last_block = 0;
+    Exp3_RunPhase(EXP3_TESTING_BLOCKS,
+                  false,
+                  termSampleA1,
+                  termSampleA2,
+                  termB1_left,
+                  termB1_right,
+                  termB2_left,
+                  termB2_right,
+                  termOpLeft,
+                  termOpRight,
+                  termG,
+                  "testing",
+                  NULL,
+                  &testing_last_block);
+
+    assert(baseline_correct < EXP3_BASELINE_BLOCKS * EXP3_BLOCK_TRIALS, "Experiment 3: baseline should be subchance");
+    assert(training_last_block == EXP3_BLOCK_TRIALS, "Experiment 3: final training block was not perfect");
+    assert(testing_last_block == EXP3_BLOCK_TRIALS, "Experiment 3: final testing block was not perfect");
+
+    MOTOR_BABBLING_CHANCE = original_babbling;
+    puts("<<MSC Experiment 3 test successful");
+}
+
+void MSC_Exp3_ExportCSV(const char *path)
+{
+    FILE *csv = fopen(path, "w");
+    if(!csv)
+    {
+        perror("Failed to open CSV output");
+        return;
+    }
+    fprintf(csv, "phase,block,trial,sample,left,right,chosen_op,correct,exp_a1_b1_left,exp_a1_b1_right,exp_a2_b2_left,exp_a2_b2_right\n");
+
+    double original_babbling = MOTOR_BABBLING_CHANCE;
+    MOTOR_BABBLING_CHANCE = 0.2;
+
+    srand(1337);
+    OUTPUT = 0;
+    MSC_INIT();
+    MSC_SetInputLogging(false);
+
+    Term termSampleA1 = Encode_Term("exp3csv_sample_A1");
+    Term termSampleA2 = Encode_Term("exp3csv_sample_A2");
+    Term termB1_left = Encode_Term("exp3csv_B1_left");
+    Term termB1_right = Encode_Term("exp3csv_B1_right");
+    Term termB2_left = Encode_Term("exp3csv_B2_left");
+    Term termB2_right = Encode_Term("exp3csv_B2_right");
+    Term termG = Encode_Term("exp3csv_G");
+    Term termOpLeft = Encode_Term("exp3csv_op_left");
+    Term termOpRight = Encode_Term("exp3csv_op_right");
+
+    MSC_AddOperation(termOpLeft, Exp3_OpLeft);
+    MSC_AddOperation(termOpRight, Exp3_OpRight);
+
+    int dummy_last_block = 0;
+    Exp3_RunPhase(EXP3_BASELINE_BLOCKS,
+                  false,
+                  termSampleA1,
+                  termSampleA2,
+                  termB1_left,
+                  termB1_right,
+                  termB2_left,
+                  termB2_right,
+                  termOpLeft,
+                  termOpRight,
+                  termG,
+                  "baseline",
+                  csv,
+                  &dummy_last_block);
+
+    Exp3_RunPhase(EXP3_TRAINING_BLOCKS,
+                  true,
+                  termSampleA1,
+                  termSampleA2,
+                  termB1_left,
+                  termB1_right,
+                  termB2_left,
+                  termB2_right,
+                  termOpLeft,
+                  termOpRight,
+                  termG,
+                  "training",
+                  csv,
+                  &dummy_last_block);
+
+    Exp3_RunPhase(EXP3_TESTING_BLOCKS,
+                  false,
+                  termSampleA1,
+                  termSampleA2,
+                  termB1_left,
+                  termB1_right,
+                  termB2_left,
+                  termB2_right,
+                  termOpLeft,
+                  termOpRight,
+                  termG,
+                  "testing",
+                  csv,
+                  &dummy_last_block);
+
+    fclose(csv);
+    MOTOR_BABBLING_CHANCE = original_babbling;
+    printf("Experiment 3 CSV written to %s\n", path);
 }
