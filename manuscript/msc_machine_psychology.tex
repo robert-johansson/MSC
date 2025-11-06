@@ -1,0 +1,167 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{enumitem}
+
+\title{Machine Psychology with the Minimal Sensorimotor Core (MSC)}
+\author{MSC Documentation Synthesis}
+\date{\today}
+
+\begin{document}
+\maketitle
+\tableofcontents
+
+\section{Introduction}
+The Minimal Sensorimotor Core (MSC) is a compact implementation of a Non-Axiomatic Reasoning System (NARS) controller. It processes perceptual events, forms temporal implications, and selects operations under resource constraints. The repository provides both the reasoning engine and a battery of experiments that replicate the ``Machine Psychology'' tasks described in the accompanying manuscript. This document consolidates the architectural notes, data-structure references, testing instructions, and experimental findings contained throughout the \texttt{docs/} directory into a single manuscript.
+
+\section{System Architecture}
+\subsection{Build and Entry Points}
+\begin{itemize}[leftmargin=*]
+  \item \texttt{./build.sh} compiles every \texttt{src/*.c} module into the \texttt{MSC} binary with dead-code elimination.
+  \item Running \texttt{./MSC} prints a comprehensive usage string. The binary accepts regression flags (\texttt{--list-tests}, \texttt{--test}, \texttt{--run-all-tests}) and experiment exporters (\texttt{--exp1-csv}, \texttt{--exp2-csv}, \texttt{--exp3-csv}).
+  \item Demo entry points (\texttt{pong}, \texttt{pong2}, \texttt{testchamber}, \texttt{alien}, \texttt{simple\_discriminations}) are dispatched directly from \texttt{src/main.c}.
+\end{itemize}
+
+\subsection{Reasoning Cycle}
+One call to \texttt{MSC\_Cycles(1)} performs:
+\begin{enumerate}[leftmargin=*]
+  \item \textbf{Input injection:} Belief and goal events, constructed by \texttt{MSC\_AddInputBelief} or \texttt{MSC\_AddInputGoal}, enter FIFO buffers with fresh truth values and stamps.
+  \item \textbf{Concept activation:} The newest event activates (or creates) its concept and updates usage priorities.
+  \item \textbf{Link mining:} \texttt{Cycle\_ReinforceLink} induces temporal implications of the form \texttt{<(\&/, pre, op, +dt) =/> post>}.
+  \item \textbf{Goal propagation and decision-making:} Goal spikes backchain through stored implications, while \texttt{Decision\_Suggest} evaluates candidate operations using \texttt{Truth\_Expectation}. Operations whose expectation surpasses \texttt{DECISION\_THRESHOLD} are executed.
+  \item \textbf{Cleanup:} Processed spikes are reset and the concept attention queue is rebuilt.
+\end{enumerate}
+
+\section{Core Data Structures}
+\subsection{Terms, Truth, and Stamps}
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Terms} are fixed-length (two-character) symbol sequences (\texttt{src/Term.h}). \texttt{Encode\_Term} maps strings to unique term IDs.
+  \item \textbf{Truth values} couple frequency and confidence. Expectation, revision, deduction, induction, intersection, and projection are implemented in \texttt{src/Truth.c}.
+  \item \textbf{Stamps} track the evidential base of events and implications, preventing overlap and enabling revision (\texttt{src/Stamp.c}).
+\end{itemize}
+
+\subsection{Events and FIFOs}
+\begin{itemize}[leftmargin=*]
+  \item Each \textbf{Event} stores a term, truth, stamp, occurrence time, and optional operation ID.
+  \item Belief and goal queues (\texttt{FIFO}) maintain recent sequences up to \texttt{MAX\_SEQUENCE\_LEN} (currently~3), enabling longer antecedents such as sample--comparison--operation chains.
+\end{itemize}
+
+\subsection{Concept Memory and Implications}
+\begin{itemize}[leftmargin=*]
+  \item Concepts hold current belief and goal spikes, implication tables per operation, and usage metrics.
+  \item Implications \texttt{(pre => post)} include temporal offsets and debug labels. \texttt{Table\_AddAndRevise} handles insertion and revision with stamp-aware overlap checks.
+  \item A binary-heap priority queue (\texttt{PriorityQueue}) yields limited-resource attention by promoting recently used concepts.
+\end{itemize}
+
+\subsection{Decision Layer}
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Motor babbling} (\texttt{Decision\_MotorBabbling}) introduces exploration when no implication meets the decision threshold.
+  \item \textbf{Best candidate selection} (\texttt{Decision\_BestCandidate}) projects goal truth through available implications and selects the highest-utility operation.
+  \item \textbf{Assumption of failure} (negative confirmation) decreases the desirability of operations that fail to achieve the goal, stabilising learning in changing conditions.
+\end{itemize}
+
+\section{Implementation Parameters}
+Table~\ref{tab:params} summarises the most relevant compile-time or global parameters.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{ll}
+\toprule
+Parameter & Default Meaning \\
+\midrule
+\texttt{MAX\_SEQUENCE\_LEN} & 3 event elements per sequence \\
+\texttt{FIFO\_SIZE} & Depth of belief/goal buffers (1024) \\
+\texttt{TABLE\_SIZE} & Max implications per concept/operation (32) \\
+\texttt{PROPAGATION\_THRESHOLD} & Minimum expectation before backchaining (0.501) \\
+\texttt{PROPAGATION\_ITERATIONS} & Depth of goal propagation (5) \\
+\texttt{DECISION\_THRESHOLD} & Expectation required to execute an operation (0.6) \\
+\texttt{MOTOR\_BABBLING\_CHANCE} & Exploration probability (0.2, often reduced during experiments) \\
+\bottomrule
+\end{tabular}
+\caption{Key MSC configuration parameters.}
+\label{tab:params}
+\end{table}
+
+\section{Testing and Demonstrations}
+MSC bundles deterministic regression helpers plus interactive demos (\texttt{docs/testing-guide.md}).
+\begin{itemize}[leftmargin=*]
+  \item Regression tests cover stamp handling, FIFO rollover, priority queues, implication revision, multi-step procedure learning, and the machine-psychology experiments.
+  \item Demos showcase online learning in Pong variants, an interactive ``Test Chamber,'' a Space-Invaders-style ``Alien'' scenario, and a simple discrimination exercise.
+  \item The CLI flags \texttt{--list-tests}, \texttt{--test <name>}, and \texttt{--run-all-tests} orchestrate the suite. Experiment exporters stream per-trial CSVs.
+\end{itemize}
+
+\section{Machine Psychology Experiments}
+The repository reproduces the three tasks from the Machine Psychology manuscript. CSV outputs live in \texttt{docs/}, and block accuracy plots may be embedded directly in \LaTeX\ (paths relative to this manuscript).
+
+\subsection{Experiment 1: Simple Discrimination}
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Design:} Baseline (3 blocks), Training (3), Testing (3). Agent must choose \texttt{\^{}left} when stimulus \texttt{A1} is on the left and \texttt{\^{}right} otherwise.
+  \item \textbf{Outcomes:} Baseline $\approx$50\% accuracy; Training attains 100\% by the third block; Testing remains 100\%. Expectations for the correct implications converge near 0.89.
+  \item \textbf{Reference:} Figure~\ref{fig:exp1} plots block accuracy.
+\end{itemize}
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.7\linewidth]{../docs/exp1_block_accuracy.png}
+  \caption{Experiment 1 block accuracy.}
+  \label{fig:exp1}
+\end{figure}
+
+\subsection{Experiment 2: Changing Contingencies}
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Design:} Baseline (2 blocks), Training~1 (4), Testing~1 (2), Training~2 (reversal, 9 blocks), Testing~2 (2). The mapping flips after Testing~1, requiring relearning.
+  \item \textbf{Outcomes:} MSC recovers to perfect accuracy by block~7 of Training~2, maintaining 100\% through Testing~2. Expectation logs show the original implications decreasing while the reversed hypotheses accumulate evidence.
+  \item \textbf{Reference:} Figure~\ref{fig:exp2} depicts the per-block trajectory.
+\end{itemize}
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.7\linewidth]{../docs/exp2_block_accuracy_len3.png}
+  \caption{Experiment 2 block accuracy with nine Training~2 blocks.}
+  \label{fig:exp2}
+\end{figure}
+
+\subsection{Experiment 3: Conditional Discrimination}
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Design:} Baseline (3 blocks), Training (6), Testing (3). Each trial presents a sample stimulus ($A1$ or $A2$) plus comparisons ($B1$, $B2$) on left/right. Successful behaviour requires using the joint context (sample + comparison) before acting.
+  \item \textbf{Implementation Highlights:} The experiment harness feeds sample and comparison beliefs sequentially, allowing \texttt{Term\_Sequence} to build two-element antecedents. Expectations are recorded for both the full sample--comparison implications and the shorter comparison-only rules.
+  \item \textbf{Outcomes:} Training achieves 100\% accuracy by block~5 and sustains it through Testing. Sample--comparison implications settle near expectation $0.84$ with high confidence, while comparison-only rules remain lower (frequency $\approx 0.74$).
+  \item \textbf{Reference:} Figure~\ref{fig:exp3} shows block accuracy.
+\end{itemize}
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.7\linewidth]{../docs/exp3_block_accuracy.png}
+  \caption{Experiment 3 block accuracy.}
+  \label{fig:exp3}
+\end{figure}
+
+\section{Observations and Practical Notes}
+\begin{itemize}[leftmargin=*]
+  \item Raising \texttt{MAX\_SEQUENCE\_LEN} to 3 is essential for Experiment~3; it enables MSC to learn antecedents like \texttt{<((A1, B1), \^{}left) =/> G>}.
+  \item Decision heuristics naturally favour longer antecedents once their expectation exceeds that of shorter, ambiguous rules.
+  \item Motor babbling is throttled (\texttt{0.2}) during experiments. Once high-confidence implications exist, exploration rarely fires, allowing deterministic evaluation.
+  \item CSV columns include the trial context and expectation snapshots; the plotting script can visualise any experiment via \texttt{scripts/plot\_block\_accuracy.py}.
+\end{itemize}
+
+\section{Reproducibility Checklist}
+\begin{enumerate}[leftmargin=*]
+  \item Compile with \texttt{./build.sh}.
+  \item Export trials: \texttt{./MSC --exp1-csv docs/exp1\_trials.csv}, \texttt{./MSC --exp2-csv docs/exp2\_trials.csv}, \texttt{./MSC --exp3-csv docs/exp3\_trials.csv}.
+  \item Generate plots: \texttt{venv/bin/python scripts/plot\_block\_accuracy.py --csv <file> --output <png>}.
+  \item Optionally rerun regression shortcuts: \texttt{./MSC --test exp1}, \texttt{--test exp1\_training}, \texttt{--test exp2}, \texttt{--test exp3}.
+\end{enumerate}
+
+\section{Future Directions}
+\begin{itemize}[leftmargin=*]
+  \item Extending inference beyond NAL-7/8 primitives---for example, by reintroducing sequence-goal deduction---could support richer planning tasks.
+  \item Increasing \texttt{MAX\_SEQUENCE\_LEN} further would allow MSC to capture longer temporal contexts but would require auditing the FIFO and table memory footprints.
+  \item Tight integration with demos (Pong, TestChamber) could provide online visualisations of implication strength, facilitating real-time debugging.
+\end{itemize}
+
+\section{Conclusion}
+MSC delivers a minimal yet expressive platform for studying non-axiomatic reasoning in sensorimotor environments. The three Machine Psychology experiments confirm that the system can (i) learn simple discriminations, (ii) adapt to changing contingencies, and (iii) solve conditional discriminations, all while maintaining transparent, inspectable data structures. This manuscript captures the current understanding of the codebase and serves as a foundation for future extensions.
+
+\end{document}
