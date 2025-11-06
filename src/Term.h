@@ -7,7 +7,7 @@
 
 //Parameters//
 //----------//
-#define MAX_SEQUENCE_LEN 2
+#define MAX_SEQUENCE_LEN 3
 
 //Description//
 //-----------//

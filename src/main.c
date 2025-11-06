@@ -25,6 +25,9 @@ static const RegressionTest kRegressionTests[] = {
     {"multistep", MSC_Multistep_Test},
     {"multistep2", MSC_Multistep2_Test},
     {"sequence", Sequence_Test},
+    {"sequence_len3", MSC_SequenceLen3_Test},
+    {"exp1", MSC_Exp1_Test},
+    {"exp1_training", MSC_Exp1_TrainingOnly},
 };
 
 static const size_t kRegressionTestCount = sizeof(kRegressionTests) / sizeof(kRegressionTests[0]);
@@ -60,7 +63,7 @@ static void PrintTestList(void)
 
 static void PrintUsage(const char *program)
 {
-    printf("Usage: %s [--run-all-tests | --test <name> | --list-tests | pong | pongX | pong2 | pong2X | testchamber | alien]\n", program);
+    printf("Usage: %s [--run-all-tests | --test <name> | --list-tests | --exp1-csv <path> | --exp2-csv <path> | pong | pongX | pong2 | pong2X | testchamber | alien | simple_discriminations]\n", program);
 }
 
 int main(int argc, char *argv[])
@@ -76,6 +79,18 @@ int main(int argc, char *argv[])
         if(!strcmp(argv[1], "--list-tests"))
         {
             PrintTestList();
+            return 0;
+        }
+        if(!strcmp(argv[1], "--exp1-csv"))
+        {
+            const char *path = (argc >= 3) ? argv[2] : "exp1.csv";
+            MSC_Exp1_ExportCSV(path);
+            return 0;
+        }
+        if(!strcmp(argv[1], "--exp2-csv"))
+        {
+            const char *path = (argc >= 3) ? argv[2] : "exp2.csv";
+            MSC_Exp2_ExportCSV(path);
             return 0;
         }
         if(!strcmp(argv[1], "--run-all-tests"))
@@ -139,6 +154,11 @@ int main(int argc, char *argv[])
             MSC_Alien();
             return 0;
         }
+        if(!strcmp(argv[1], "simple_discriminations"))
+        {
+            MSC_SimpleDiscriminations();
+            return 0;
+        }
         fprintf(stderr, "Unknown argument '%s'.\n", argv[1]);
         PrintUsage(argv[0]);
         return 1;
@@ -146,4 +166,3 @@ int main(int argc, char *argv[])
     PrintUsage(argv[0]);
     return 0;
 }
-

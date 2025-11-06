@@ -12,5 +12,10 @@ void MSC_Follow_Test(void);
 void MSC_Multistep_Test(void);
 void MSC_Multistep2_Test(void);
 void Sequence_Test(void);
+void MSC_SequenceLen3_Test(void);
+void MSC_Exp1_Test(void);
+void MSC_Exp1_TrainingOnly(void);
+void MSC_Exp1_ExportCSV(const char *path);
+void MSC_Exp2_ExportCSV(const char *path);
 
 #endif
